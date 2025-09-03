@@ -1,0 +1,118 @@
+# Alternative Docker Compose for Production/Deployment environments
+
+# This compose file is designed for environments where you want to use
+# pre-built images or have different networking requirements
+
+services:
+  # MongoDB database
+  mongo:
+    image: mongo:7
+    container_name: browsertrix-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-password}
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./configs:/docker-entrypoint-initdb.d:ro
+    networks:
+      - browsertrix
+
+  # Redis cache and message broker
+  redis:
+    image: redis:7-alpine
+    container_name: browsertrix-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - browsertrix
+
+  # Backend API service (using pre-built image if available)
+  backend:
+    # Uncomment the next line and comment out 'build' if you have a pre-built image
+    # image: browsertrix/backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: browsertrix-backend
+    restart: unless-stopped
+    environment:
+      - MONGO_HOST=mongo
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-password}
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-change-this}
+      - SUPERUSER_EMAIL=${SUPERUSER_EMAIL:-admin@localhost}
+      - SUPERUSER_PASSWORD=${SUPERUSER_PASSWORD:-admin}
+      - ENABLE_REGISTRATIONS=${ENABLE_REGISTRATIONS:-true}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      - mongo
+      - redis
+    command: ["uvicorn", "btrixcloud.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - browsertrix
+
+  # Email service
+  emails:
+    # Uncomment the next line and comment out 'build' if you have a pre-built image
+    # image: browsertrix/emails:latest
+    build:
+      context: ./emails
+      dockerfile: Dockerfile
+    container_name: browsertrix-emails
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "${EMAILS_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    networks:
+      - browsertrix
+
+  # Frontend web application
+  frontend:
+    # Uncomment the next line and comment out 'build' if you have a pre-built image
+    # image: browsertrix/frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - GIT_COMMIT_HASH=${GIT_COMMIT_HASH:-dev}
+        - GIT_BRANCH_NAME=${GIT_BRANCH_NAME:-main}
+        - VERSION=${VERSION:-1.0.0-dev}
+    container_name: browsertrix-frontend
+    restart: unless-stopped
+    environment:
+      - API_BASE_URL=${API_BASE_URL:-http://localhost:8000}
+      - DOCS_URL=${DOCS_URL:-https://docs.browsertrix.com/}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+      - emails
+    networks:
+      - browsertrix
+
+volumes:
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  browsertrix:
+    driver: bridge

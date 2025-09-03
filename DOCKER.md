@@ -21,7 +21,10 @@ This Docker Compose setup allows you to run the entire Browsertrix application s
    docker compose up -d
    ```
 
-3. Wait for all services to start (this may take a few minutes on first run)
+3. Check that all services are healthy:
+   ```bash
+   ./health-check.sh
+   ```
 
 4. Access the application:
    - Frontend: http://localhost:8080
@@ -48,25 +51,28 @@ The Docker Compose setup includes the following services:
   - Username: admin
   - Password: password
 
-## Development
+## Files
 
-For development, you can mount local source code and enable hot reloading:
+- `docker-compose.yml` - Main Docker Compose configuration for development
+- `docker-compose.prod.yml` - Production-oriented Docker Compose configuration  
+- `.env.development` - Development environment variables
+- `DOCKER.md` - Detailed setup and usage instructions
+- `Makefile` - Convenience commands for Docker operations
+- `health-check.sh` - Script to verify all services are running correctly
 
+## Quick Start
+
+1. Make sure Docker and Docker Compose are installed
+2. Run: `docker compose up -d`
+3. Run: `./health-check.sh` to verify everything is working
+4. Access the application at http://localhost:8080
+
+Alternatively, you can use the Makefile:
 ```bash
-# Start services in development mode
-docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# Restart a specific service
-docker compose restart backend
-
-# Stop all services
-docker compose down
-
-# Stop all services and remove volumes
-docker compose down -v
+make dev    # Build and start development environment
+make status # Check service status
+make logs   # View service logs
+make clean  # Stop and clean everything
 ```
 
 ## Environment Variables
