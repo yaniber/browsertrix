@@ -1,0 +1,94 @@
+services:
+  # MongoDB database
+  mongo:
+    image: mongo:7
+    container_name: browsertrix-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - browsertrix
+
+  # Redis cache and message broker
+  redis:
+    image: redis:7-alpine
+    container_name: browsertrix-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - browsertrix
+
+  # Backend API service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: browsertrix-backend
+    environment:
+      - MONGO_HOST=mongo
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-jwt-secret-change-this
+      - SUPERUSER_EMAIL=admin@localhost
+      - SUPERUSER_PASSWORD=admin
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - ./backend:/app
+    command: ["uvicorn", "btrixcloud.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    networks:
+      - browsertrix
+
+  # Email service
+  emails:
+    build:
+      context: ./emails
+      dockerfile: Dockerfile
+    container_name: browsertrix-emails
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - browsertrix
+
+  # Frontend web application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - GIT_COMMIT_HASH=dev
+        - GIT_BRANCH_NAME=main
+        - VERSION=1.0.0-dev
+    container_name: browsertrix-frontend
+    environment:
+      - API_BASE_URL=http://localhost:8000
+      - DOCS_URL=https://docs.browsertrix.com/
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+      - emails
+    networks:
+      - browsertrix
+
+volumes:
+  mongo_data:
+  redis_data:
+
+networks:
+  browsertrix:
+    driver: bridge
