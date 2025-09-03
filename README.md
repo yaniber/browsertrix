@@ -26,6 +26,28 @@ Instructions for setting up Browsertrix is available at [docs.browsertrix.com/de
 
 The docs cover deploying Browsertrix in different environments using Kubernetes, from a single-node setup to scalable clusters in the cloud.
 
+### Quick Start with Docker Compose
+
+For local development and testing, you can use Docker Compose to run Browsertrix:
+
+```bash
+# Clone the repository
+git clone https://github.com/yaniber/browsertrix.git
+cd browsertrix
+
+# Start all services
+docker compose up -d
+
+# Check service health
+./health-check.sh
+
+# Access the application
+# Frontend: http://localhost:8080
+# Backend API: http://localhost:8000
+```
+
+For detailed Docker setup instructions, see [DOCKER.md](DOCKER.md).
+
 ## Support
 
 Ask us your questions about Browsertrix and web archiving in the [community help forum](https://forum.webrecorder.net/c/help/5).
